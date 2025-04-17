@@ -41,13 +41,17 @@ RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-influxdb
 RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-tavily
 
 
+
 # 引入 n8n-i18n-chinese 项目，配置 n8n 中文支持
-RUN cd /tmp && \
-    git clone https://github.com/other-blowsnow/n8n-i18n-chinese.git && \
-    cd n8n-i18n-chinese && \
-    cp -r locales /usr/local/lib/node_modules/n8n/ && \
-    cp -r dist/* /usr/local/lib/node_modules/n8n/dist/ && \
-    rm -rf /tmp/n8n-i18n-chinese
+RUN apt-get update && apt-get install -y curl unzip && \
+    mkdir -p /tmp/n8n-i18n && \
+    curl -L -o /tmp/n8n-i18n/master.zip https://github.com/other-blowsnow/n8n-i18n-chinese/archive/refs/heads/master.zip && \
+    unzip /tmp/n8n-i18n/master.zip -d /tmp/n8n-i18n && \
+    cp -r /tmp/n8n-i18n/n8n-i18n-chinese-master/locales /usr/local/lib/node_modules/n8n/ && \
+    cp -r /tmp/n8n-i18n/n8n-i18n-chinese-master/dist/* /usr/local/lib/node_modules/n8n/dist/ && \
+    rm -rf /tmp/n8n-i18n && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 
 # 设置 n8n 默认语言为中文
 ENV N8N_DEFAULT_LOCALE=zh-CN
