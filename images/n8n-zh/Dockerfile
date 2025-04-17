@@ -48,13 +48,12 @@ RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-python
 #ENV N8N_DEFAULT_LOCALE=zh-CN
 
 # 引入 n8n-i18n-chinese 项目，配置 n8n 中文支持
-RUN apt-get update && apt-get install -y curl tar gzip && \
+RUN apk add --no-cache curl tar gzip && \
     mkdir -p /tmp/n8n-i18n && \
     curl -L -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/n8n%401.88.0/editor-ui.tar.gz" && \
     mkdir -p /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
     tar -xzf /tmp/n8n-i18n/editor-ui.tar.gz -C /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
-    rm -rf /tmp/n8n-i18n && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    rm -rf /tmp/n8n-i18n
 
 
 
