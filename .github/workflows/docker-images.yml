@@ -41,8 +41,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/n8n-python:${{ steps.vars.outputs.tag }}
-            ${{ secrets.DOCKER_USERNAME }}/n8n-python:latest
+            ${{ secrets.DOCKER_USERNAME }}/n8n-python-zh:${{ steps.vars.outputs.tag }}
+            ${{ secrets.DOCKER_USERNAME }}/n8n-python-zh:latest
 #n8n-debian
       - run: cp default-requirements.txt images/n8n-debian/requirements.txt
       - name: Build (debian)
@@ -55,15 +55,15 @@ jobs:
           #,linux/arm64
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/n8n-python:${{ steps.vars.outputs.tag }}-debian
-            ${{ secrets.DOCKER_USERNAME }}/n8n-python:latest-debian
+            ${{ secrets.DOCKER_USERNAME }}/n8n-python-zh:${{ steps.vars.outputs.tag }}-debian
+            ${{ secrets.DOCKER_USERNAME }}/n8n-python-zh:latest-debian
 
       - name: Docker Hub Description (README.md)
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          repository: jnukylin/n8n-python
+          repository: jnukylin/n8n-python-zh
           readme-filepath: README.md
 
       - name: Create Release in GitHub
