@@ -1,0 +1,4 @@
+fire
+markitdown
+openpyxl
+requests
