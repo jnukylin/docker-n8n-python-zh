@@ -35,7 +35,7 @@ jobs:
       - name: Build (default => alpine)
         uses: docker/build-push-action@v6
         with:
-          context: ./images/n8n
+          context: ./images/n8n-zh
           build-args: |
             N8N_VERSION=${{steps.vars.outputs.tag}}
           platforms: linux/amd64
@@ -48,7 +48,7 @@ jobs:
       - name: Build (debian)
         uses: docker/build-push-action@v6
         with:
-          context: ./images/n8n-debian
+          context: ./images/n8n-debian-zh
           build-args: |
             N8N_VERSION=${{ steps.vars.outputs.tag }}
           platforms: linux/amd64
