@@ -43,19 +43,35 @@ RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-tavily
 
 
 # 引入 n8n-i18n-chinese 项目，配置 n8n 中文支持
-RUN apt-get update && apt-get install -y curl unzip && \
+#RUN apt-get update && apt-get install -y curl unzip && \
+    #mkdir -p /tmp/n8n-i18n && \
+    #LATEST_VERSION_i18n=$(curl -s https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name')
+    #curl -L -o /tmp/n8n-i18n/master.zip https://github.com/other-blowsnow/n8n-i18n-chinese/archive/refs/heads/master.zip && \
+    #unzip /tmp/n8n-i18n/master.zip -d /tmp/n8n-i18n && \
+    #cp -r /tmp/n8n-i18n/n8n-i18n-chinese-master/locales /usr/local/lib/node_modules/n8n/ && \
+    #cp -r /tmp/n8n-i18n/n8n-i18n-chinese-master/dist/* /usr/local/lib/node_modules/n8n/dist/ && \
+    #rm -rf /tmp/n8n-i18n && \
+    #apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-python
+
+# 引入 n8n-i18n-chinese 项目，配置 n8n 中文支持
+RUN apt-get update && apt-get install -y curl tar gzip && \
     mkdir -p /tmp/n8n-i18n && \
-    curl -L -o /tmp/n8n-i18n/master.zip https://github.com/other-blowsnow/n8n-i18n-chinese/archive/refs/heads/master.zip && \
-    unzip /tmp/n8n-i18n/master.zip -d /tmp/n8n-i18n && \
-    cp -r /tmp/n8n-i18n/n8n-i18n-chinese-master/locales /usr/local/lib/node_modules/n8n/ && \
-    cp -r /tmp/n8n-i18n/n8n-i18n-chinese-master/dist/* /usr/local/lib/node_modules/n8n/dist/ && \
+    curl -L -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/n8n%401.88.0/editor-ui.tar.gz" && \
+    mkdir -p /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
+    tar -xzf /tmp/n8n-i18n/editor-ui.tar.gz -C /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
     rm -rf /tmp/n8n-i18n && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+
+
 
 
 # 设置 n8n 默认语言为中文
 ENV N8N_DEFAULT_LOCALE=zh-CN
 
+# 设置 PYTHONPATH 环境变量，确保 Python 能找到所有已安装的包
+ENV PYTHONPATH=/usr/local/lib/python3.11/dist-packages:/home/pyodide/lib/python3.11/site-packages
 ENV NODE_ICU_DATA /usr/lib/node_modules/full-icu
 
 WORKDIR /data
