@@ -1,16 +1,22 @@
-# n8n - docker image with Python 3.10 and custom node PythonFunction
+# 我将n8n、python、中文包组合在一起，参照项目有[naskio/docker-n8n-python](https://github.com/naskio/docker-n8n-python)、[other-blowsnow/n8n-i18n-chinese](https://github.com/other-blowsnow/n8n-i18n-chinese)等
+
+# n8n - docker image with Python 3.11 and custom node PythonFunction
+
 
 ![n8n.io - Workflow Automation](https://raw.githubusercontent.com/n8n-io/n8n/master/assets/n8n-logo.png)
+import { N8n } from '@lobehub/icons';
 
-This [image](https://hub.docker.com/r/naskio/n8n-python) includes Python 3.10 by default. it can be used to run python
+export default () => <N8n.Combine size={56} type={'color'}/>;
+
+This [image](https://hub.docker.com/r/naskio/n8n-python) includes Python 3.11 by default. it can be used to run python
 scripts inside n8n using the [Execute Command](https://docs.n8n.io/nodes/n8n-nodes-base.executeCommand/) node or code
 snippets using the custom node [Python Function](https://www.github.com/naskio/n8n-nodes-python).
 
-> Run python 3.10 code on n8n.
+> Run python 3.11 code on n8n.
 
-[Docker Hub](https://hub.docker.com/r/naskio/n8n-python)
+[Docker Hub](https://hub.docker.com/r/jnukylin/n8n-python-zh)
 
-[GitHub repository](https://www.github.com/naskio/docker-n8n-python)
+[GitHub repository](https://www.github.com/jnukylin/docker-n8n-python-zh)
 
 ## Image Setup
 
@@ -21,12 +27,12 @@ Using docker compose
 
 ### Run Python Code
 
-The image includes the custom module [n8n-nodes-python](https://www.github.com/naskio/n8n-nodes-python) by default.
+The image includes the custom module [n8n-nodes-python](https://www.github.com/jnukylin/n8n-nodes-python-zh) by default.
 
-We can use this custom node [Python Function](https://www.github.com/naskio/n8n-nodes-python) to run a python code over
+We can use this custom node [Python Function](https://www.github.com/jnukylin/n8n-nodes-python-zh) to run a python code over
 the `items` (works the same way as [Function](https://docs.n8n.io/nodes/n8n-nodes-base.function) node)
 
-[Python Function node docs](https://www.github.com/naskio/n8n-nodes-python)
+[Python Function node docs](https://www.github.com/jnukylin/n8n-nodes-python-zh)
 
 ### Run mounted Python scripts using the ExecuteCommand node
 
