@@ -57,11 +57,11 @@ RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-python
 # 引入 n8n-i18n-chinese 项目，配置 n8n 中文支持
 RUN apk add --no-cache curl tar gzip jq && \
     # 获取 n8n 最新版本号
-    LATEST_VERSION_i18n=$(curl -s https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name' | sed 's/^v//') && \
+    LATEST_VERSION_i18n=$(curl -s https://api.github.com/repos/other-blowsnow/n8n-i18n-chinese/releases/latest | jq -r '.tag_name') && \
     echo "最新版本: ${LATEST_VERSION_i18n}" && \
     mkdir -p /tmp/n8n-i18n && \
     # 使用获取的版本号构建下载链接
-    curl -L -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/n8n%40${LATEST_VERSION_i18n}/editor-ui.tar.gz" && \
+    curl -L -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/${LATEST_VERSION_i18n}/editor-ui.tar.gz" && \
     mkdir -p /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
     tar -xzf /tmp/n8n-i18n/editor-ui.tar.gz -C /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
     rm -rf /tmp/n8n-i18n
