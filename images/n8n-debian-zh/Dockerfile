@@ -52,7 +52,7 @@ RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-tavily
     #cp -r /tmp/n8n-i18n/n8n-i18n-chinese-master/dist/* /usr/local/lib/node_modules/n8n/dist/ && \
     #rm -rf /tmp/n8n-i18n && \
     #apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-python
+
 
 # 引入 n8n-i18n-chinese 项目，配置 n8n 中文支持
 RUN apt-get update && apt-get install -y curl tar gzip && \
