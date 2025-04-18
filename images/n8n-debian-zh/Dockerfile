@@ -85,7 +85,7 @@ ENV N8N_DEFAULT_LOCALE=zh-CN
 # 设置 PYTHONPATH 环境变量，确保 Python 能找到所有已安装的包
 ENV PYTHONPATH=/usr/local/lib/python3.11/dist-packages:/home/pyodide/lib/python3.11/site-packages
 ENV NODE_ICU_DATA /usr/lib/node_modules/full-icu
-
+RUN chown -R node:node /home/node
 WORKDIR /data
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
