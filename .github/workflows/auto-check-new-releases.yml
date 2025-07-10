@@ -9,21 +9,70 @@ name: Check for new releases
 # Automatically check for new releases (new versions)
 on:
   schedule:
-    - cron: "0 0 */1 * *"
+    #- cron: "0 0 */1 * *"
+    - cron: "0 15 * * *"
 
 jobs:
   get-version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT }}
       - name: Fetch release version
         id: fetch-version
         run: |
-          # 获取最新稳定版本而不是预发布版本
-          curl -sL https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name' | sed 's/^v//' > release-versions/n8n-latest.txt
-          echo ::set-output name=version::$(cat release-versions/n8n-latest.txt)
+          # 使用 GitHub API 获取 n8n 仓库的最新 release，并用 jq 解析出 tag_name
+          # 将版本号保存到一个变量中
+          LATEST_VERSION=$(curl -sL https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name')
+          
+          # 确保目录存在
+          mkdir -p release-versions
+
+          # 将获取到的最新版本号写入到文件中，这会覆盖旧文件内容
+          echo "${LATEST_VERSION}" > release-versions/n8n-latest.txt
+          
+          # 打印版本号到日志，方便调试
+          echo "Latest n8n version is: ${LATEST_VERSION}"
+          
+          # 使用 GITHUB_OUTPUT 将版本号设置为此步骤的输出变量，变量名为 "version"
+          echo "version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
+
+      # 第三步：如果文件有变更，则自动创建并推送提交
+      - name: Commit and push if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          # 自定义提交信息，引用上一步的输出变量 "version"
+          commit_message: "chore(release): Update n8n to version ${{ steps.fetch-version.outputs.version }}"
+          
+          # 指定要监控的文件模式，只有这个文件发生变化时才会提交
+          file_pattern: release-versions/n8n-latest.txt
+          
+          # 配置提交者信息
+          commit_user_name: "GitHub Actions Bot"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+
+        #run: |
+          #curl -sL https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name' > release-versions/n8n-latest.txt
+          #echo ::set-output name=version::$(cat release-versions/n8n-latest.txt)
+     
+       
+       #run: |
+        #LATEST_VERSION=$(curl -s https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name')
+        #echo "Latest release tag: $LATEST_VERSION"
+        #echo "latest=$LATEST_VERSION" >> $GITHUB_OUTPUT
+       
+       #run: |
+          # 使用 GitHub API 獲取最新的穩定發行版，並從回應的 JSON 中提取 tag_name
+          # 增加了 Authorization header 以避免 API 頻率限制
+          #curl -sL \
+            #-H "Accept: application/vnd.github+json" \
+            #-H "Authorization: Bearer ${{ secrets.PAT }}" \
+            #https://api.github.com/repos/n8n-io/n8n/releases/latest \
+            #| jq -r ".tag_name" > release-versions/n8n-latest.txt
+          
+          # 將版本號設定為後續步驟可用的輸出變數 (使用新的 GITHUB_OUTPUT 語法)
+          #echo "version=$(cat release-versions/n8n-latest.txt)" >> $GITHUB_OUTPUT
 
       #      - name: Check for modified files
       #        id: git-check
@@ -36,6 +85,12 @@ jobs:
       #          git commit -am "New release: $(cat release-versions/n8n-latest.txt)"
       #          git push
 
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      #- uses: stefanzweifel/git-auto-commit-action@v5
+      #  with:
+      #    commit_message: New auto release v${{steps.fetch-version.outputs.version}}
+      - name: Commit and push if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: New auto release v${{steps.fetch-version.outputs.version}}
+          commit_message: "chore(release): New n8n version v${{ steps.fetch-version.outputs.version }}"
+          # 可選：指定要提交的檔案，更精確
+          file_pattern: release-versions/n8n-latest.txt 
