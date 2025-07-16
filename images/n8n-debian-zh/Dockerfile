@@ -42,17 +42,18 @@ RUN \
 	cd /usr/local/lib/node_modules/n8n && \
 	npm install n8n-nodes-python n8n-nodes-changed n8n-nodes-updates n8n-nodes-influxdb n8n-nodes-tavily
 
-# --- 修正點 3: 修正中文化包的版本匹配邏輯 ---
-# 必須下載與 n8n 版本完全對應的中文化包，而不是下載 "latest" 版本，以避免 UI 錯亂。
+# --- 修正點 3: 修正中文化包的版本匹配邏輯並增加錯誤處理 ---
+# 嘗試下載與 n8n 版本完全對應的中文化包，如果找不到則跳過，避免構建失敗。
 RUN \
-    # 移除 'n8n@' 前綴，只保留純數字版本號
     PURE_N8N_VERSION=${N8N_VERSION#n8n@} && \
-    echo "正在為 n8n 版本 ${PURE_N8N_VERSION} 下載對應的中文化包..." && \
-    mkdir -p /tmp/n8n-i18n && \
-    # 使用 n8n 的版本號來構建下載連結
-    curl -L -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/n8n%40${PURE_N8N_VERSION}/editor-ui.tar.gz" && \
-    mkdir -p /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
-    tar -xzf /tmp/n8n-i18n/editor-ui.tar.gz -C /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
+    echo "正在為 n8n 版本 ${PURE_N8N_VERSION} 嘗試下載對應的中文化包..." && \
+    ( \
+        mkdir -p /tmp/n8n-i18n && \
+        curl -fL -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/n8n%40${PURE_N8N_VERSION}/editor-ui.tar.gz" && \
+        echo "中文化包下載成功，正在安裝..." && \
+        mkdir -p /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
+        tar -xzf /tmp/n8n-i18n/editor-ui.tar.gz -C /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist \
+    ) || echo "警告：未找到版本 ${PURE_N8N_VERSION} 對應的中文化包，將使用預設英文介面。" && \
     rm -rf /tmp/n8n-i18n
 
 # 設定環境變數 (修正為 key=value 格式)
@@ -60,9 +61,8 @@ ENV N8N_DEFAULT_LOCALE=zh-CN
 ENV PYTHONPATH=/usr/local/lib/python3.11/dist-packages:/home/pyodide/lib/python3.11/site-packages
 ENV NODE_ICU_DATA=/usr/local/lib/node_modules/full-icu
 
-# 新增：創建 node 使用者和群組，以解決 'chown: invalid user' 錯誤
-RUN addgroup --gid 1000 node && \
-    adduser --uid 1000 --gid 1000 --disabled-password --gecos "" node
+# 新增：創建 node 使用者和群組，如果失敗則忽略（因為可能已存在）
+RUN (addgroup --gid 1000 node && adduser --uid 1000 --gid 1000 --disabled-password --gecos "" node) || echo "User 'node' likely already exists, continuing."
 
 # 設定權限和工作目錄
 RUN chown -R node:node /home/node
