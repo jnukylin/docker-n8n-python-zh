@@ -1,96 +1,63 @@
-###################
-# ENV VARS:
-# # - FULL_NAME
-# # - EMAIL
-# - PAT (generated at Personal Access Tokens - with workflow access checked)
-###################
+name: Check for new n8n releases
 
-name: Check for new releases
-# Automatically check for new releases (new versions)
 on:
+  # 每小時的第 15 分鐘執行一次
   schedule:
-    #- cron: "0 0 */1 * *"
-    - cron: "0 15 * * *"
+    - cron: "15 * * * *"
+  # 也允許手動觸發，方便測試
+  workflow_dispatch:
 
 jobs:
-  get-version:
+  check-and-commit:
     runs-on: ubuntu-latest
+    
+    # 關鍵點 1: 明確授權 workflow 對儲存庫的寫入權限
+    # 這是為了解決之前遇到的 403 Forbidden 推送錯誤
+    permissions:
+      contents: write
+
     steps:
-      - uses: actions/checkout@v4
+      # 步驟一：Checkout 程式碼
+      # 由於上面已設定 permissions，這裡不再需要 PAT
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
+          # 使用 PAT 來 checkout，這樣後續的 push 就會使用 PAT 進行驗證
+          # 這是觸發其他 workflow 的關鍵
           token: ${{ secrets.PAT }}
-      - name: Fetch release version
+
+      # 步驟二：獲取最新的 n8n 版本號
+      - name: Fetch latest n8n release version
         id: fetch-version
         run: |
-          # 使用 GitHub API 获取 n8n 仓库的最新 release，并用 jq 解析出 tag_name
-          # 将版本号保存到一个变量中
-          LATEST_VERSION=$(curl -sL https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name')
+          # 關鍵點 2: 在 API 請求中加入 PAT 進行驗證，以避免觸發 API 頻率限制
+          RAW_VERSION=$(curl -sL -H "Authorization: Bearer ${{ secrets.PAT }}" https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name')
           
-          # 确保目录存在
-          mkdir -p release-versions
+          # 如果獲取失敗，則退出
+          if [ -z "$RAW_VERSION" ]; then
+            echo "Failed to fetch latest version. Exiting."
+            exit 1
+          fi
 
-          # 将获取到的最新版本号写入到文件中，这会覆盖旧文件内容
+          # 新增：移除 'n8n@' 前綴以獲取純淨的版本號
+          LATEST_VERSION=${RAW_VERSION#n8n@}
+
+          mkdir -p release-versions
           echo "${LATEST_VERSION}" > release-versions/n8n-latest.txt
           
-          # 打印版本号到日志，方便调试
           echo "Latest n8n version is: ${LATEST_VERSION}"
-          
-          # 使用 GITHUB_OUTPUT 将版本号设置为此步骤的输出变量，变量名为 "version"
           echo "version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
 
-      # 第三步：如果文件有变更，则自动创建并推送提交
+      # 步驟三：如果文件內容有變更，則自動提交並推送
       - name: Commit and push if changed
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          # 自定义提交信息，引用上一步的输出变量 "version"
+          # 使用上一步的輸出，建立清晰的提交訊息
           commit_message: "chore(release): Update n8n to version ${{ steps.fetch-version.outputs.version }}"
           
-          # 指定要监控的文件模式，只有这个文件发生变化时才会提交
+          # 指定要監控變化的檔案
           file_pattern: release-versions/n8n-latest.txt
           
-          # 配置提交者信息
+          # 自定義提交者資訊
           commit_user_name: "GitHub Actions Bot"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
-
-        #run: |
-          #curl -sL https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name' > release-versions/n8n-latest.txt
-          #echo ::set-output name=version::$(cat release-versions/n8n-latest.txt)
-     
-       
-       #run: |
-        #LATEST_VERSION=$(curl -s https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name')
-        #echo "Latest release tag: $LATEST_VERSION"
-        #echo "latest=$LATEST_VERSION" >> $GITHUB_OUTPUT
-       
-       #run: |
-          # 使用 GitHub API 獲取最新的穩定發行版，並從回應的 JSON 中提取 tag_name
-          # 增加了 Authorization header 以避免 API 頻率限制
-          #curl -sL \
-            #-H "Accept: application/vnd.github+json" \
-            #-H "Authorization: Bearer ${{ secrets.PAT }}" \
-            #https://api.github.com/repos/n8n-io/n8n/releases/latest \
-            #| jq -r ".tag_name" > release-versions/n8n-latest.txt
-          
-          # 將版本號設定為後續步驟可用的輸出變數 (使用新的 GITHUB_OUTPUT 語法)
-          #echo "version=$(cat release-versions/n8n-latest.txt)" >> $GITHUB_OUTPUT
-
-      #      - name: Check for modified files
-      #        id: git-check
-      #        run: echo ::set-output name=modified::$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")
-      #      - name: Commit latest release version
-      #        if: steps.git-check.outputs.modified == 'true'
-      #        run: |
-      #          git config --global user.name '${{ secrets.FULL_NAME }}'
-      #          git config --global user.email '${{ secrets.EMAIL }}'
-      #          git commit -am "New release: $(cat release-versions/n8n-latest.txt)"
-      #          git push
-
-      #- uses: stefanzweifel/git-auto-commit-action@v5
-      #  with:
-      #    commit_message: New auto release v${{steps.fetch-version.outputs.version}}
-      - name: Commit and push if changed
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore(release): New n8n version v${{ steps.fetch-version.outputs.version }}"
-          # 可選：指定要提交的檔案，更精確
-          file_pattern: release-versions/n8n-latest.txt 
