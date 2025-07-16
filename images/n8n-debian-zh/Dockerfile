@@ -61,11 +61,13 @@ ENV N8N_DEFAULT_LOCALE=zh-CN
 ENV PYTHONPATH=/usr/local/lib/python3.11/dist-packages:/home/pyodide/lib/python3.11/site-packages
 ENV NODE_ICU_DATA=/usr/local/lib/node_modules/full-icu
 
-# 新增：創建 node 使用者和群組，如果失敗則忽略（因為可能已存在）
-RUN (addgroup --gid 1000 node && adduser --uid 1000 --gid 1000 --disabled-password --gecos "" node) || echo "User 'node' likely already exists, continuing."
+# 新增：確保 node 使用者和群組存在，然後設定權限
+RUN \
+    (getent group node >/dev/null || addgroup --gid 1000 node) && \
+    (getent passwd node >/dev/null || adduser --uid 1000 --gid 1000 --disabled-password --gecos "" --home /home/node node) && \
+    chown -R node:node /home/node
 
-# 設定權限和工作目錄
-RUN chown -R node:node /home/node
+# 設定工作目錄
 WORKDIR /data
 
 # 複製並設定入口點腳本
