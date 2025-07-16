@@ -55,10 +55,14 @@ RUN \
     tar -xzf /tmp/n8n-i18n/editor-ui.tar.gz -C /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
     rm -rf /tmp/n8n-i18n
 
-# 設定環境變數
+# 設定環境變數 (修正為 key=value 格式)
 ENV N8N_DEFAULT_LOCALE=zh-CN
 ENV PYTHONPATH=/usr/local/lib/python3.11/dist-packages:/home/pyodide/lib/python3.11/site-packages
-ENV NODE_ICU_DATA /usr/local/lib/node_modules/full-icu
+ENV NODE_ICU_DATA=/usr/local/lib/node_modules/full-icu
+
+# 新增：創建 node 使用者和群組，以解決 'chown: invalid user' 錯誤
+RUN addgroup --gid 1000 node && \
+    adduser --uid 1000 --gid 1000 --disabled-password --gecos "" node
 
 # 設定權限和工作目錄
 RUN chown -R node:node /home/node
