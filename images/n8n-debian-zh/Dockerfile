@@ -1,51 +1,40 @@
-# 使用指定的 Python 和 Node.js 版本的基礎鏡像
 FROM nikolaik/python-nodejs:python3.11-nodejs22
 
-# 接收 n8n 版本號作為構建參數
 ARG N8N_VERSION
 
-# 檢查 N8N_VERSION 是否已提供，如果沒有則構建失敗
 RUN if [ -z "$N8N_VERSION" ] ; then echo "The N8N_VERSION argument is missing!" ; exit 1; fi
 
-# --- 修正點 1: 合併多個 RUN 指令，並移除錯誤的使用者修改命令 ---
-# 原有的 usermod 和 groupmod 命令是錯誤的，因為基礎鏡像中不存在名為 'pn' 的使用者，
-# 內建的使用者就是 'node'，所以無需修改。
-RUN \
-	apt-get update && \
-	apt-get -y install \
-	graphicsmagick \
-	gosu \
-	git \
-	python3-dev \
-	gcc \
-	g++ \
-	build-essential \
-	curl \
-	tar \
-	gzip \
-	jq && \
-	apt-get clean && rm -rf /var/lib/apt/lists/*
+# 系統包安裝
+RUN apt-get update && \
+    apt-get -y install \
+    graphicsmagick \
+    gosu \
+    git \
+    python3-dev \
+    gcc \
+    g++ \
+    build-essential \
+    curl \
+    tar \
+    gzip \
+    jq && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 安裝 Python 依賴
+# Python 依賴
 COPY requirements.txt /requirements/requirements.txt
-RUN \
-	python -m pip install --upgrade pip setuptools wheel && \
-	pip install -r /requirements/requirements.txt
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    pip install -r /requirements/requirements.txt
 
-# 切換到 root 使用者以進行全域安裝
+# 確保使用 root 進行全局安裝
 USER root
 
-# 安裝 n8n 和社群節點
-# --- 修正點 2: 將多個 npm install 合併到一個 RUN 層中以優化 ---
-RUN \
-	npm_config_user=root npm install -g full-icu n8n@${N8N_VERSION} && \
-	cd /usr/local/lib/node_modules/n8n && \
-	npm install n8n-nodes-python n8n-nodes-changed n8n-nodes-updates n8n-nodes-influxdb n8n-nodes-tavily
+# npm 全局安裝
+RUN npm install -g full-icu n8n@${N8N_VERSION} && \
+    cd /usr/local/lib/node_modules/n8n && \
+    npm install n8n-nodes-python n8n-nodes-changed n8n-nodes-updates n8n-nodes-influxdb n8n-nodes-tavily
 
-# --- 修正點 3: 修正中文化包的版本匹配邏輯並增加錯誤處理 ---
-# 嘗試下載與 n8n 版本完全對應的中文化包，如果找不到則跳過，避免構建失敗。
-RUN \
-    PURE_N8N_VERSION=${N8N_VERSION#n8n@} && \
+# 中文化包安裝（保持原有邏輯）
+RUN PURE_N8N_VERSION=${N8N_VERSION#n8n@} && \
     echo "正在為 n8n 版本 ${PURE_N8N_VERSION} 嘗試下載對應的中文化包..." && \
     ( \
         mkdir -p /tmp/n8n-i18n && \
@@ -56,27 +45,22 @@ RUN \
     ) || echo "警告：未找到版本 ${PURE_N8N_VERSION} 對應的中文化包，將使用預設英文介面。" && \
     rm -rf /tmp/n8n-i18n
 
-# 設定環境變數 (修正為 key=value 格式)
+# 環境變數設定
 ENV N8N_DEFAULT_LOCALE=zh-CN
 ENV PYTHONPATH=/usr/local/lib/python3.11/dist-packages:/home/pyodide/lib/python3.11/site-packages
 ENV NODE_ICU_DATA=/usr/local/lib/node_modules/full-icu
 
-# 新增：採用更健壯的方式確保 node 使用者和群組存在，然後設定權限
-RUN \
-    if ! id -u node >/dev/null 2>&1; then \
-        addgroup --system node && \
-        adduser --system --ingroup node --disabled-password --no-create-home --home /home/node node; \
-    fi && \
-    mkdir -p /home/node && \
-    chown -R node:node /home/node
+# 創建工作目錄並設定權限
+RUN mkdir -p /data && \
+    chown -R pn:pn /data
 
-# 設定工作目錄
+# 切換到非特權用戶
+USER pn
+
 WORKDIR /data
 
-# 複製並設定入口點腳本
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
-# 開放 n8n 預設端口
 EXPOSE 5678/tcp
