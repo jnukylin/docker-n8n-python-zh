@@ -1,95 +1,73 @@
-#python更新至3.11，nodejs版本不能大于22
+# 使用指定的 Python 和 Node.js 版本的基礎鏡像
 FROM nikolaik/python-nodejs:python3.11-nodejs22
 
-# changing user `pn` to `node`
-RUN usermod --login node --move-home --home /home/node pn
-RUN groupmod --new-name node pn
-
+# 接收 n8n 版本號作為構建參數
 ARG N8N_VERSION
 
+# 檢查 N8N_VERSION 是否已提供，如果沒有則構建失敗
 RUN if [ -z "$N8N_VERSION" ] ; then echo "The N8N_VERSION argument is missing!" ; exit 1; fi
 
+# --- 修正點 1: 合併多個 RUN 指令，並移除錯誤的使用者修改命令 ---
+# 原有的 usermod 和 groupmod 命令是錯誤的，因為基礎鏡像中不存在名為 'pn' 的使用者，
+# 內建的使用者就是 'node'，所以無需修改。
 RUN \
 	apt-get update && \
-	apt-get -y install graphicsmagick gosu git
+	apt-get -y install \
+	graphicsmagick \
+	gosu \
+	git \
+	python3-dev \
+	gcc \
+	g++ \
+	build-essential \
+	curl \
+	tar \
+	gzip \
+	jq && \
+	apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y \
-    python3-dev \
-    gcc \
-    g++ \
-    #linux-headers-$(uname -r) \
-    build-essential && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-    
-# Install python requirements
-RUN mkdir /requirements
+# 安裝 Python 依賴
 COPY requirements.txt /requirements/requirements.txt
-RUN python -m pip install --upgrade pip setuptools wheel
-RUN pip install -r /requirements/requirements.txt
+RUN \
+	python -m pip install --upgrade pip setuptools wheel && \
+	pip install -r /requirements/requirements.txt
 
-# Set a custom user to not have n8n run as root
+# 切換到 root 使用者以進行全域安裝
 USER root
 
-RUN npm_config_user=root npm install -g full-icu n8n@${N8N_VERSION}
+# 安裝 n8n 和社群節點
+# --- 修正點 2: 將多個 npm install 合併到一個 RUN 層中以優化 ---
+RUN \
+	npm_config_user=root npm install -g full-icu n8n@${N8N_VERSION} && \
+	cd /usr/local/lib/node_modules/n8n && \
+	npm install n8n-nodes-python n8n-nodes-changed n8n-nodes-updates n8n-nodes-influxdb n8n-nodes-tavily
 
-# Install n8n-nodes-python module
-#RUN cd /usr/lib/node_modules/n8n && npm install n8n-nodes-python
-RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-python
-RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-changed
-RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-updates
-RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-influxdb
-RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-tavily
-
-
-
-# 引入 n8n-i18n-chinese 项目，配置 n8n 中文支持
-#RUN apt-get update && apt-get install -y curl unzip && \
-    #mkdir -p /tmp/n8n-i18n && \
-    #LATEST_VERSION_i18n=$(curl -s https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name')
-    #curl -L -o /tmp/n8n-i18n/master.zip https://github.com/other-blowsnow/n8n-i18n-chinese/archive/refs/heads/master.zip && \
-    #unzip /tmp/n8n-i18n/master.zip -d /tmp/n8n-i18n && \
-    #cp -r /tmp/n8n-i18n/n8n-i18n-chinese-master/locales /usr/local/lib/node_modules/n8n/ && \
-    #cp -r /tmp/n8n-i18n/n8n-i18n-chinese-master/dist/* /usr/local/lib/node_modules/n8n/dist/ && \
-    #rm -rf /tmp/n8n-i18n && \
-    #apt-get clean && rm -rf /var/lib/apt/lists/*
-
-
-# 引入 n8n-i18n-chinese 项目，配置 n8n 中文支持
-#RUN apt-get update && apt-get install -y curl tar gzip && \
-    #mkdir -p /tmp/n8n-i18n && \
-    #curl -L -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/n8n%401.88.0/editor-ui.tar.gz" && \
-    #mkdir -p /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
-    #tar -xzf /tmp/n8n-i18n/editor-ui.tar.gz -C /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
-    #rm -rf /tmp/n8n-i18n && \
-    #apt-get clean && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && apt-get install -y curl tar gzip jq && \
-    # 获取 n8n 最新版本号
-    #LATEST_VERSION_i18n=$(curl -s https://api.github.com/repos/n8n-io/n8n/releases/latest | jq -r '.tag_name' | sed 's/^v//') && \
-    LATEST_VERSION_i18n=$(curl -s https://api.github.com/repos/other-blowsnow/n8n-i18n-chinese/releases/latest | jq -r '.tag_name') && \
-    echo "最新版本: ${LATEST_VERSION_i18n}" && \
+# --- 修正點 3: 修正中文化包的版本匹配邏輯 ---
+# 必須下載與 n8n 版本完全對應的中文化包，而不是下載 "latest" 版本，以避免 UI 錯亂。
+RUN \
+    # 移除 'n8n@' 前綴，只保留純數字版本號
+    PURE_N8N_VERSION=${N8N_VERSION#n8n@} && \
+    echo "正在為 n8n 版本 ${PURE_N8N_VERSION} 下載對應的中文化包..." && \
     mkdir -p /tmp/n8n-i18n && \
-    # 使用获取的版本号构建下载链接
-    #curl -L -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/n8n%40${LATEST_VERSION_i18n}/editor-ui.tar.gz" && \
-    curl -L -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/${LATEST_VERSION_i18n}/editor-ui.tar.gz" && \
+    # 使用 n8n 的版本號來構建下載連結
+    curl -L -o /tmp/n8n-i18n/editor-ui.tar.gz "https://github.com/other-blowsnow/n8n-i18n-chinese/releases/download/n8n%40${PURE_N8N_VERSION}/editor-ui.tar.gz" && \
     mkdir -p /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
     tar -xzf /tmp/n8n-i18n/editor-ui.tar.gz -C /usr/local/lib/node_modules/n8n/node_modules/n8n-editor-ui/dist && \
-    rm -rf /tmp/n8n-i18n && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    rm -rf /tmp/n8n-i18n
 
-
-
-# 设置 n8n 默认语言为中文
+# 設定環境變數
 ENV N8N_DEFAULT_LOCALE=zh-CN
-
-# 设置 PYTHONPATH 环境变量，确保 Python 能找到所有已安装的包
 ENV PYTHONPATH=/usr/local/lib/python3.11/dist-packages:/home/pyodide/lib/python3.11/site-packages
-ENV NODE_ICU_DATA /usr/lib/node_modules/full-icu
+ENV NODE_ICU_DATA /usr/local/lib/node_modules/full-icu
+
+# 設定權限和工作目錄
 RUN chown -R node:node /home/node
 WORKDIR /data
 
+# 複製並設定入口點腳本
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
+# 開放 n8n 預設端口
 EXPOSE 5678/tcp
